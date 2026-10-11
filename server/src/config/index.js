@@ -13,7 +13,7 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || 'excel_mgmt_secure_jwt_secret_dev_2026',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
   databaseUrl: process.env.DATABASE_URL || '',
-  dataDir: process.env.DATA_DIR || path.resolve(__dirname, '../../data'),
+  dataDir: process.env.DATA_DIR || (process.env.VERCEL ? '/tmp/data' : path.resolve(__dirname, '../../data')),
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   isProduction: process.env.NODE_ENV === 'production',
   maxUploadSizeBytes: 50 * 1024 * 1024, // 50MB

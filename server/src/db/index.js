@@ -12,8 +12,15 @@ export async function getDb() {
 
   if (config.databaseUrl) {
     try {
-      console.log('🔗 Attempting to connect to PostgreSQL server via DATABASE_URL...');
-      const pool = new pg.Pool({ connectionString: config.databaseUrl });
+      const poolConfig = { connectionString: config.databaseUrl };
+      if (
+        config.databaseUrl.includes('sslmode=require') ||
+        process.env.NODE_ENV === 'production' ||
+        process.env.VERCEL
+      ) {
+        poolConfig.ssl = { rejectUnauthorized: false };
+      }
+      const pool = new pg.Pool(poolConfig);
       // Test connectivity
       await pool.query('SELECT 1');
       console.log('✅ Successfully connected to external PostgreSQL server.');

@@ -1,0 +1,340 @@
+{
+  "metadata": {
+    "timestamp": "2026-10-11T17:16:41.926Z",
+    "version": "1.0.0",
+    "databaseMode": "embedded_pglite"
+  },
+  "tables": {
+    "users": [
+      {
+        "id": 1,
+        "username": "admin",
+        "password_hash": "$2a$10$SsZ4UoMjLAbrmFgZKjlxr.O8AUzRqVsFaO8wmtaPg.rX5A977MEZW",
+        "role": "admin",
+        "created_at": "2026-10-11T17:14:01.225Z"
+      },
+      {
+        "id": 2,
+        "username": "manager",
+        "password_hash": "$2a$10$Dlg8ll6xb2nPBLWuh8IyGuY1iJbG87tgKSkZQY.Whz8mqXFvhsCum",
+        "role": "admin",
+        "created_at": "2026-10-11T17:14:01.225Z"
+      }
+    ],
+    "datasets": [
+      {
+        "id": "dataset-employees-main",
+        "name": "Global Employee Directory",
+        "source_filename": "sample_business_records.xlsx",
+        "worksheet_name": "Employees",
+        "record_count": 10,
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "dataset-contractors-main",
+        "name": "External Contractors",
+        "source_filename": "sample_business_records.xlsx",
+        "worksheet_name": "Contractors",
+        "record_count": 3,
+        "created_at": "2026-10-11T17:15:14.082Z",
+        "updated_at": "2026-10-11T17:15:14.082Z"
+      }
+    ],
+    "records": [
+      {
+        "id": "acfdfe79-aa20-4ccd-9152-93e49ddb1ef9",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00101",
+        "name": "Aarav Sharma",
+        "mobile": "09876543210",
+        "email": "aarav.sharma@example.com",
+        "company": "Engineering",
+        "custom_fields": {
+          "City": "Bengaluru",
+          "Designation": "Lead Architect",
+          "Joining Date": "2022-01-15"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "63a62d45-9234-4820-a051-1b71fc22b21a",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00102",
+        "name": "Diya Patel",
+        "mobile": "09812345678",
+        "email": "diya.patel@example.com",
+        "company": "Product Management",
+        "custom_fields": {
+          "City": "Mumbai",
+          "Designation": "Principal PM",
+          "Joining Date": "2021-06-20"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "ca8599f8-fd7a-4909-a9a8-a77a11a6e4ff",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00103",
+        "name": "Rohan Verma",
+        "mobile": "09845678901",
+        "email": "rohan.verma@example.com",
+        "company": "Sales & Marketing",
+        "custom_fields": {
+          "City": "Delhi",
+          "Designation": "Regional Director",
+          "Joining Date": "2020-03-10"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "f28e8a23-5ce6-4ea7-b5b8-71e0930d8d36",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00104",
+        "name": "Sneha Kulkarni",
+        "mobile": "09823456789",
+        "email": "sneha.k@example.com",
+        "company": "Human Resources",
+        "custom_fields": {
+          "City": "Pune",
+          "Designation": "HR Business Partner",
+          "Joining Date": "2023-02-01"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "f7174adc-6d3f-4ed3-83db-3a3925ab0701",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00105",
+        "name": "Vikram Singh",
+        "mobile": "09834567890",
+        "email": "vikram.singh@example.com",
+        "company": "Engineering",
+        "custom_fields": {
+          "City": "Hyderabad",
+          "Designation": "Senior DevOps Engineer",
+          "Joining Date": "2022-09-18"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "ff911d0a-5007-47be-97d2-2ba64bff09b9",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00106",
+        "name": "Pooja Iyer",
+        "mobile": "09856789012",
+        "email": "pooja.iyer@example.com",
+        "company": "Finance",
+        "custom_fields": {
+          "City": "Chennai",
+          "Designation": "Financial Analyst",
+          "Joining Date": "2021-11-05"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "b6c6739d-aa55-4d48-bdba-222e2c5c97ec",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00107",
+        "name": "Kabir Mehta",
+        "mobile": "09867890123",
+        "email": "kabir.m@example.com",
+        "company": "Legal & Compliance",
+        "custom_fields": {
+          "City": "Gurugram",
+          "Designation": "Legal Counsel",
+          "Joining Date": "2023-07-22"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "f182f8e1-430d-455c-af65-597a62ad4fdc",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00108",
+        "name": "Ananya Nair",
+        "mobile": "09878901234",
+        "email": "ananya.nair@example.com",
+        "company": "Engineering",
+        "custom_fields": {
+          "City": "Kochi",
+          "Designation": "Full Stack Developer",
+          "Joining Date": "2024-04-12"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "72929d08-3fdb-49c4-9b4b-ea22827f63c8",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00109",
+        "name": "Aditya Joshi",
+        "mobile": "09889012345",
+        "email": "aditya.joshi@example.com",
+        "company": "Customer Support",
+        "custom_fields": {
+          "City": "Kolkata",
+          "Designation": "Support Manager",
+          "Joining Date": "2022-08-30"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "98adba82-7b59-4e28-8fb5-a52b29fded66",
+        "dataset_id": "dataset-employees-main",
+        "excel_id": "00110",
+        "name": "Meera Reddy",
+        "mobile": "09890123456",
+        "email": "meera.reddy@example.com",
+        "company": "Design",
+        "custom_fields": {
+          "City": "Bengaluru",
+          "Designation": "Staff UI/UX Designer",
+          "Joining Date": "2021-04-14"
+        },
+        "created_at": "2026-10-11T17:15:13.978Z",
+        "updated_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "f99d5e88-662c-4b8e-9939-0cfd03285b6e",
+        "dataset_id": "dataset-contractors-main",
+        "excel_id": "00201",
+        "name": "David Miller",
+        "mobile": "09711223344",
+        "email": "david.m@contractor.net",
+        "company": "Apex Staffing",
+        "custom_fields": {
+          "Hourly Rate": "$75/hr",
+          "Contract End": "2026-12-31"
+        },
+        "created_at": "2026-10-11T17:15:14.082Z",
+        "updated_at": "2026-10-11T17:15:14.082Z"
+      },
+      {
+        "id": "d1fac245-124f-4ac7-a8f8-6180a7b81032",
+        "dataset_id": "dataset-contractors-main",
+        "excel_id": "00202",
+        "name": "Elena Rostova",
+        "mobile": "09722334455",
+        "email": "elena.r@contractor.net",
+        "company": "Global Tech Solutions",
+        "custom_fields": {
+          "Hourly Rate": "$85/hr",
+          "Contract End": "2027-03-31"
+        },
+        "created_at": "2026-10-11T17:15:14.082Z",
+        "updated_at": "2026-10-11T17:15:14.082Z"
+      },
+      {
+        "id": "f882ed31-a94b-4644-97cb-47283a24a2cc",
+        "dataset_id": "dataset-contractors-main",
+        "excel_id": "00203",
+        "name": "Carlos Gomez",
+        "mobile": "09733445566",
+        "email": "carlos.g@contractor.net",
+        "company": "Apex Staffing",
+        "custom_fields": {
+          "Hourly Rate": "$70/hr",
+          "Contract End": "2026-10-15"
+        },
+        "created_at": "2026-10-11T17:15:14.082Z",
+        "updated_at": "2026-10-11T17:15:14.082Z"
+      }
+    ],
+    "import_jobs": [
+      {
+        "id": "1cd9f621-a56d-43e4-bcc7-7b94b5b2b091",
+        "user_id": 1,
+        "filename": "sample_business_records.xlsx",
+        "worksheet": "Employees",
+        "dataset_id": "dataset-employees-main",
+        "mode": "merge",
+        "total_processed": 10,
+        "inserted": 10,
+        "updated": 0,
+        "skipped": 0,
+        "failed": 0,
+        "errors": [],
+        "status": "completed",
+        "created_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": "af7a1315-c012-484a-82c6-33fa2a099527",
+        "user_id": 1,
+        "filename": "sample_business_records.xlsx",
+        "worksheet": "Contractors",
+        "dataset_id": "dataset-contractors-main",
+        "mode": "merge",
+        "total_processed": 3,
+        "inserted": 3,
+        "updated": 0,
+        "skipped": 0,
+        "failed": 0,
+        "errors": [],
+        "status": "completed",
+        "created_at": "2026-10-11T17:15:14.082Z"
+      }
+    ],
+    "search_history": [],
+    "audit_logs": [
+      {
+        "id": 1,
+        "user_id": 1,
+        "username": "admin",
+        "action": "USER_LOGIN",
+        "target_type": "user",
+        "target_id": "1",
+        "details": {},
+        "ip_address": "127.0.0.1",
+        "created_at": "2026-10-11T17:15:06.050Z"
+      },
+      {
+        "id": 34,
+        "user_id": 1,
+        "username": "admin",
+        "action": "IMPORT_EXCEL",
+        "target_type": "dataset",
+        "target_id": "dataset-employees-main",
+        "details": {
+          "mode": "merge",
+          "failed": 0,
+          "skipped": 0,
+          "updated": 0,
+          "filename": "sample_business_records.xlsx",
+          "inserted": 10,
+          "worksheet": "Employees",
+          "totalProcessed": 10
+        },
+        "ip_address": "127.0.0.1",
+        "created_at": "2026-10-11T17:15:13.978Z"
+      },
+      {
+        "id": 35,
+        "user_id": 1,
+        "username": "admin",
+        "action": "IMPORT_EXCEL",
+        "target_type": "dataset",
+        "target_id": "dataset-contractors-main",
+        "details": {
+          "mode": "merge",
+          "failed": 0,
+          "skipped": 0,
+          "updated": 0,
+          "filename": "sample_business_records.xlsx",
+          "inserted": 3,
+          "worksheet": "Contractors",
+          "totalProcessed": 3
+        },
+        "ip_address": "127.0.0.1",
+        "created_at": "2026-10-11T17:15:14.082Z"
+      }
+    ]
+  }
+}

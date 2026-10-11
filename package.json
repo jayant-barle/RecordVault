@@ -1,0 +1,30 @@
+{
+  "name": "excel-record-management-system",
+  "version": "1.0.0",
+  "description": "Secure, LAN-accessible Excel Search & Record Management Website for business records",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev": "node scripts/start-dev.js",
+    "start": "node server/src/server.js",
+    "build": "cd client && npm run build",
+    "test": "cd server && npm test",
+    "generate-samples": "node scripts/generate-sample-data.js",
+    "get-ip": "node server/src/utils/networkIp.js",
+    "backup": "node scripts/backup-db.js",
+    "restore": "node scripts/restore-db.js"
+  },
+  "keywords": [
+    "excel",
+    "record-management",
+    "search",
+    "postgresql",
+    "vite",
+    "react"
+  ],
+  "author": "",
+  "license": "ISC"
+}

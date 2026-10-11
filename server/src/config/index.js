@@ -14,7 +14,7 @@ export const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
   databaseUrl: process.env.DATABASE_URL || '',
   dataDir: process.env.DATA_DIR || (process.env.VERCEL ? '/tmp/data' : path.resolve(__dirname, '../../data')),
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  clientUrl: process.env.CLIENT_SERVICE_URL || process.env.CLIENT_URL || 'http://localhost:5173',
   isProduction: process.env.NODE_ENV === 'production',
   maxUploadSizeBytes: 50 * 1024 * 1024, // 50MB
 };

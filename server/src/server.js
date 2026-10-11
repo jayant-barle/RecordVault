@@ -66,8 +66,10 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
+// API Router supporting both /api/* and root /* routing (for Vercel services)
+const apiRouter = express.Router();
+
+apiRouter.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -76,16 +78,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Mount API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/records', recordsRoutes);
-app.use('/api/datasets', datasetsRoutes);
-app.use('/api/import', importRoutes);
-app.use('/api/export', exportRoutes);
-app.use('/api/audit', auditRoutes);
-app.use('/api/system', systemRoutes);
-app.use('/api/backup', backupRoutes);
-app.use('/api/data-quality', dataQualityRoutes);
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/records', recordsRoutes);
+apiRouter.use('/datasets', datasetsRoutes);
+apiRouter.use('/import', importRoutes);
+apiRouter.use('/export', exportRoutes);
+apiRouter.use('/audit', auditRoutes);
+apiRouter.use('/system', systemRoutes);
+apiRouter.use('/backup', backupRoutes);
+apiRouter.use('/data-quality', dataQualityRoutes);
+
+// Mount on both /api and / to handle both direct and path-rewritten Vercel service routes
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 // Serve static client if production build exists
 const clientDistPath = path.resolve(__dirname, '../../client/dist');
@@ -125,7 +130,8 @@ async function startServer() {
   }
 }
 
-// Export app for testing
+// Export app for testing & Vercel
+export default app;
 export { app };
 
 // If run directly

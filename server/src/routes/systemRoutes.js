@@ -1,6 +1,7 @@
 import express from 'express';
 import { getLocalIpAddress } from '../utils/networkIp.js';
 import { getDbMode, query } from '../db/index.js';
+import { config } from '../config/index.js';
 
 const router = express.Router();
 
@@ -38,7 +39,7 @@ router.get('/health', async (req, res) => {
       apiPort: port,
       clientPort: 5173,
       apiUrl: `http://${lanIp}:${port}/api`,
-      clientUrl: `http://${lanIp}:5173`,
+      clientUrl: config.clientUrl || `http://${lanIp}:5173`,
     },
     checkDurationMs: Date.now() - startTime,
   };
@@ -56,7 +57,7 @@ router.get('/info', (req, res) => {
     lanIp,
     apiPort: port,
     apiUrl: `http://${lanIp}:${port}/api`,
-    webUrl: `http://${lanIp}:5173`,
+    webUrl: config.clientUrl || `http://${lanIp}:5173`,
     dbMode: getDbMode(),
     troubleshooting: {
       windows11IpCheck: 'Open PowerShell or Command Prompt and run: ipconfig',

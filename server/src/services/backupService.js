@@ -6,7 +6,7 @@ import { query, withTransaction, getDbMode } from '../db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DEFAULT_BACKUP_DIR = process.env.BACKUP_DIR || (process.env.VERCEL ? '/tmp/backups' : path.resolve(__dirname, '../../../backups'));
+const DEFAULT_BACKUP_DIR = process.env.BACKUP_DIR || path.resolve(__dirname, '../../../backups');
 
 /**
  * Returns active backup settings from system_settings

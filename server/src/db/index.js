@@ -15,8 +15,7 @@ export async function getDb() {
       const poolConfig = { connectionString: config.databaseUrl };
       if (
         config.databaseUrl.includes('sslmode=require') ||
-        process.env.NODE_ENV === 'production' ||
-        process.env.VERCEL
+        process.env.NODE_ENV === 'production'
       ) {
         poolConfig.ssl = { rejectUnauthorized: false };
       }

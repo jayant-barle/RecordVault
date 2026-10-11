@@ -1,38 +1,37 @@
 import * as XLSX from 'xlsx';
-import PDFDocument from 'pdfkit';
-import { query } from '../db/index.js';
+import PDFDocument from 'pdfkit-table';
 import { sanitizeCellValue } from '../utils/formulaSanitizer.js';
+import { query } from '../db/index.js';
+
+// Standard field label mapping
+const STANDARD_COLUMN_LABELS = {
+  excel_id: 'Business ID',
+  name: 'Full Name',
+  mobile: 'Mobile Number',
+  email: 'Email Address',
+  company: 'Company / Dept',
+  dataset_name: 'Dataset',
+  created_at: 'Date Added',
+};
 
 /**
- * Fetch records for export based on explicit IDs or current search/filter criteria.
+ * Fetches records to export based on selectedIds or filter query.
  */
-export async function getRecordsForExport({ selectedIds, datasetId, queryText, searchField }) {
-  if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+export async function getRecordsForExport({ selectedIds = [], datasetId = '', queryText = '', searchField = 'all', criteria = [] }) {
+  if (selectedIds && selectedIds.length > 0) {
     const placeholders = selectedIds.map((_, i) => `$${i + 1}`).join(',');
-    const sql = `
-      SELECT 
-        r.id,
-        r.dataset_id,
-        r.excel_id,
-        r.name,
-        r.mobile,
-        r.email,
-        r.company,
-        r.custom_fields,
-        r.created_at,
-        d.name as dataset_name,
-        d.source_filename
+    const res = await query(`
+      SELECT r.*, d.name as dataset_name, d.source_filename, d.worksheet_name
       FROM records r
       LEFT JOIN datasets d ON r.dataset_id = d.id
-      WHERE r.id IN (${placeholders})
+      WHERE r.id IN (${placeholders}) AND r.is_deleted = FALSE
       ORDER BY r.created_at DESC
-    `;
-    const res = await query(sql, selectedIds);
+    `, selectedIds);
     return res.rows;
   }
 
-  // Filter-based export
-  const whereConditions = [];
+  // Filter-based query
+  const whereConditions = ['r.is_deleted = FALSE'];
   const params = [];
 
   if (datasetId) {
@@ -40,194 +39,177 @@ export async function getRecordsForExport({ selectedIds, datasetId, queryText, s
     whereConditions.push(`r.dataset_id = $${params.length}`);
   }
 
-  const trimmed = String(queryText || '').trim();
-  if (trimmed) {
-    params.push(trimmed);
-    const qIndex = params.length;
-
-    if (searchField === 'all' || !searchField) {
+  const trimmedQuery = String(queryText || '').trim();
+  if (trimmedQuery) {
+    if (searchField === 'all') {
+      params.push(trimmedQuery);
+      const qIdx = params.length;
       whereConditions.push(`(
-        LOWER(TRIM(r.excel_id)) = LOWER(TRIM($${qIndex})) OR
-        LOWER(TRIM(r.name)) = LOWER(TRIM($${qIndex})) OR
-        LOWER(TRIM(r.mobile)) = LOWER(TRIM($${qIndex})) OR
-        LOWER(TRIM(r.email)) = LOWER(TRIM($${qIndex})) OR
-        LOWER(TRIM(r.company)) = LOWER(TRIM($${qIndex}))
+        LOWER(TRIM(r.excel_id)) = LOWER(TRIM($${qIdx})) OR
+        LOWER(TRIM(r.name)) = LOWER(TRIM($${qIdx})) OR
+        LOWER(TRIM(r.mobile)) = LOWER(TRIM($${qIdx})) OR
+        LOWER(TRIM(r.email)) = LOWER(TRIM($${qIdx})) OR
+        LOWER(TRIM(r.company)) = LOWER(TRIM($${qIdx}))
       )`);
     } else if (['excel_id', 'name', 'mobile', 'email', 'company'].includes(searchField)) {
-      whereConditions.push(`LOWER(TRIM(r.${searchField})) = LOWER(TRIM($${qIndex}))`);
+      params.push(trimmedQuery);
+      whereConditions.push(`LOWER(TRIM(r.${searchField})) = LOWER(TRIM($${params.length}))`);
     } else if (searchField.startsWith('custom:')) {
-      const colName = searchField.replace('custom:', '').trim();
-      params.push(colName);
-      const colIdx = params.length;
-      whereConditions.push(`LOWER(TRIM(r.custom_fields->>$${colIdx})) = LOWER(TRIM($${qIndex}))`);
+      const col = searchField.replace('custom:', '').trim();
+      params.push(col);
+      const cIdx = params.length;
+      params.push(trimmedQuery);
+      const vIdx = params.length;
+      whereConditions.push(`LOWER(TRIM(r.custom_fields->>$${cIdx})) = LOWER(TRIM($${vIdx}))`);
     }
   }
 
-  const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-  const sql = `
-    SELECT 
-      r.id,
-      r.dataset_id,
-      r.excel_id,
-      r.name,
-      r.mobile,
-      r.email,
-      r.company,
-      r.custom_fields,
-      r.created_at,
-      d.name as dataset_name,
-      d.source_filename
+  const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+  const res = await query(`
+    SELECT r.*, d.name as dataset_name, d.source_filename, d.worksheet_name
     FROM records r
     LEFT JOIN datasets d ON r.dataset_id = d.id
     ${whereClause}
     ORDER BY r.created_at DESC
     LIMIT 10000
-  `;
-  const res = await query(sql, params);
+  `, params);
+
   return res.rows;
 }
 
 /**
- * Generate Excel workbook buffer (.xlsx) with leading zero preservation and formula injection defense.
+ * Extracts cell value for a given column definition
  */
-export function generateExcelExport(records, reportTitle = 'Business_Records_Export') {
-  // Collect all unique custom fields across records
-  const customKeySet = new Set();
-  records.forEach(r => {
-    const cf = typeof r.custom_fields === 'string' ? JSON.parse(r.custom_fields) : (r.custom_fields || {});
-    Object.keys(cf).forEach(k => customKeySet.add(k));
-  });
-  const customKeys = Array.from(customKeySet);
-
-  const headers = [
-    'Record ID',
-    'Excel ID',
-    'Full Name',
-    'Mobile / Phone',
-    'Email Address',
-    'Company / Department',
-    'Dataset',
-    ...customKeys
-  ];
-
-  const rows = records.map(r => {
-    const cf = typeof r.custom_fields === 'string' ? JSON.parse(r.custom_fields) : (r.custom_fields || {});
-    const customVals = customKeys.map(k => sanitizeCellValue(cf[k] ?? ''));
-
-    return [
-      String(r.id),
-      sanitizeCellValue(r.excel_id),
-      sanitizeCellValue(r.name),
-      sanitizeCellValue(r.mobile),
-      sanitizeCellValue(r.email),
-      sanitizeCellValue(r.company),
-      sanitizeCellValue(r.dataset_name || ''),
-      ...customVals
-    ];
-  });
-
-  const wsData = [headers, ...rows];
-  const worksheet = XLSX.utils.aoa_to_sheet(wsData);
-
-  // Explicit string formatting to ensure Excel never strips leading zeros
-  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
-  for (let R = 1; R <= range.e.r; ++R) {
-    const idCellRef = XLSX.utils.encode_cell({ r: R, c: 1 });
-    if (worksheet[idCellRef]) worksheet[idCellRef].t = 's';
-    const mobileCellRef = XLSX.utils.encode_cell({ r: R, c: 3 });
-    if (worksheet[mobileCellRef]) worksheet[mobileCellRef].t = 's';
+function extractRecordColumnValue(record, colKey) {
+  if (colKey.startsWith('custom:')) {
+    const rawKey = colKey.replace('custom:', '');
+    const cf = typeof record.custom_fields === 'string' ? JSON.parse(record.custom_fields) : (record.custom_fields || {});
+    return cf[rawKey] ?? '';
   }
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Records');
+  if (colKey === 'created_at') {
+    return record.created_at ? new Date(record.created_at).toLocaleDateString() : '';
+  }
 
-  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  return record[colKey] ?? '';
 }
 
 /**
- * Generate PDF report buffer (.pdf) with table formatting and page breaks.
+ * Resolves column header display name
  */
-export async function generatePdfExport(records, reportTitle = 'Business Records Report') {
+function resolveColumnHeader(colKey) {
+  if (STANDARD_COLUMN_LABELS[colKey]) {
+    return STANDARD_COLUMN_LABELS[colKey];
+  }
+  if (colKey.startsWith('custom:')) {
+    return colKey.replace('custom:', '');
+  }
+  return colKey;
+}
+
+/**
+ * Generates Excel (.xlsx) buffer with selected custom columns and formula injection defense.
+ */
+export function generateExcelExport(records, { selectedColumns = null, title = 'Records_Export' } = {}) {
+  // If no columns specified, use default columns plus all detected custom keys
+  let columns = selectedColumns;
+  if (!columns || columns.length === 0) {
+    const customKeys = new Set();
+    records.forEach(r => {
+      const cf = typeof r.custom_fields === 'string' ? JSON.parse(r.custom_fields) : (r.custom_fields || {});
+      Object.keys(cf).forEach(k => customKeys.add(`custom:${k}`));
+    });
+    columns = ['excel_id', 'name', 'mobile', 'email', 'company', 'dataset_name', ...Array.from(customKeys)];
+  }
+
+  const headers = columns.map(resolveColumnHeader);
+  const dataRows = [headers];
+
+  records.forEach(r => {
+    const row = columns.map(col => sanitizeCellValue(extractRecordColumnValue(r, col)));
+    dataRows.push(row);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(dataRows);
+
+  // Set explicit string cell type ('s') to preserve leading zeroes in IDs and phones
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+  for (let C = 0; C < columns.length; C++) {
+    const colName = columns[C];
+    if (colName === 'excel_id' || colName === 'mobile' || colName.includes('id') || colName.includes('phone')) {
+      for (let R = 1; R <= range.e.r; ++R) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+        if (ws[cellAddress]) {
+          ws[cellAddress].t = 's';
+        }
+      }
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Records');
+
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+
+/**
+ * Generates PDF buffer with structured tables, selected columns, and metadata.
+ */
+export async function generatePdfExport(records, { selectedColumns = null, title = 'Business Records Report' } = {}) {
   return new Promise((resolve, reject) => {
     try {
+      let columns = selectedColumns;
+      if (!columns || columns.length === 0) {
+        columns = ['excel_id', 'name', 'mobile', 'email', 'company', 'dataset_name'];
+      }
+
+      // Limit PDF columns to max 7 for readability in landscape
+      const displayColumns = columns.slice(0, 8);
+      const headers = displayColumns.map(resolveColumnHeader);
+
       const doc = new PDFDocument({
-        margin: 36,
+        margin: 28,
         size: 'A4',
         layout: 'landscape',
-        bufferPages: true
+        info: {
+          Title: title,
+          Author: 'Excel Record Management System',
+        }
       });
 
       const buffers = [];
-      doc.on('data', chunk => buffers.push(chunk));
+      doc.on('data', b => buffers.push(b));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', err => reject(err));
 
-      // Header Banner
-      doc.fontSize(18).fillColor('#0f172a').text(reportTitle, { align: 'left' });
-      doc.fontSize(9).fillColor('#64748b').text(
-        `Generated on: ${new Date().toLocaleString()} | Total Records: ${records.length}`,
+      // Report Header
+      doc.fontSize(16).fillColor('#1e293b').text(title, { align: 'left' });
+      doc.fontSize(8.5).fillColor('#64748b').text(
+        `Generated on: ${new Date().toLocaleString()} | Total Records: ${records.length} | Columns: ${displayColumns.length}`,
         { align: 'left' }
       );
-      doc.moveDown(0.8);
+      doc.moveDown(1);
 
-      const startX = 36;
-      let currentY = doc.y;
-      const columns = [
-        { header: 'Excel ID', width: 80, key: 'excel_id' },
-        { header: 'Name', width: 140, key: 'name' },
-        { header: 'Mobile', width: 100, key: 'mobile' },
-        { header: 'Email', width: 160, key: 'email' },
-        { header: 'Company', width: 120, key: 'company' },
-        { header: 'Dataset', width: 120, key: 'dataset_name' }
-      ];
+      const rows = records.map(r =>
+        displayColumns.map(col => String(extractRecordColumnValue(r, col) || '-'))
+      );
 
-      const drawHeader = (y) => {
-        doc.rect(startX, y, 720, 20).fill('#1e293b');
-        doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold');
-        let x = startX + 6;
-        columns.forEach(col => {
-          doc.text(col.header, x, y + 5, { width: col.width, lineBreak: false, ellipsis: true });
-          x += col.width;
-        });
-        doc.font('Helvetica');
-        return y + 20;
+      const tableData = {
+        headers,
+        rows
       };
 
-      currentY = drawHeader(currentY);
+      // Calculate column widths evenly
+      const totalWidth = 780; // Landscape A4 printable width
+      const colWidth = Math.floor(totalWidth / displayColumns.length);
+      const columnsSize = displayColumns.map(() => colWidth);
 
-      records.forEach((rec, idx) => {
-        if (currentY > 520) {
-          doc.addPage();
-          currentY = 40;
-          currentY = drawHeader(currentY);
-        }
-
-        if (idx % 2 === 0) {
-          doc.rect(startX, currentY, 720, 18).fill('#f8fafc');
-        }
-
-        doc.fillColor('#1e293b').fontSize(8);
-        let x = startX + 6;
-        columns.forEach(col => {
-          const val = rec[col.key] !== null && rec[col.key] !== undefined ? String(rec[col.key]) : '-';
-          doc.text(val, x, currentY + 4, { width: col.width, lineBreak: false, ellipsis: true });
-          x += col.width;
-        });
-
-        currentY += 18;
+      doc.table(tableData, {
+        prepareHeader: () => doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0f172a'),
+        prepareRow: () => doc.font('Helvetica').fontSize(8).fillColor('#334155'),
+        padding: 4,
+        columnsSize,
       });
-
-      // Page numbers in footer
-      const range = doc.bufferedPageRange();
-      for (let i = range.start; i < range.start + range.count; i++) {
-        doc.switchToPage(i);
-        doc.fontSize(8).fillColor('#94a3b8').text(
-          `Page ${i + 1} of ${range.count} — Confidential Business Document`,
-          36,
-          560,
-          { align: 'center', width: 720 }
-        );
-      }
 
       doc.end();
     } catch (err) {

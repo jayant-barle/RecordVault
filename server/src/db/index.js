@@ -40,6 +40,17 @@ export async function getDb() {
   }
 
   const pglitePath = path.join(config.dataDir, 'pglite');
+  // In case of an abrupt termination on Windows, clean up stale postmaster.pid lock file
+  const pidFile = path.join(pglitePath, 'postmaster.pid');
+  if (fs.existsSync(pidFile)) {
+    try {
+      fs.unlinkSync(pidFile);
+      console.log('🧹 Cleaned up stale PostgreSQL postmaster.pid lock.');
+    } catch (err) {
+      console.warn('⚠️ Could not clean postmaster.pid:', err.message);
+    }
+  }
+
   console.log(`💾 Initializing embedded persistent PostgreSQL at: ${pglitePath}`);
   const pglite = new PGlite(pglitePath);
   await pglite.waitReady;

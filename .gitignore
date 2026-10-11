@@ -2,6 +2,8 @@ node_modules/
 dist/
 .env
 server/data/pglite/
+backups/
+server/backups/
 *.log
 .DS_Store
 Thumbs.db

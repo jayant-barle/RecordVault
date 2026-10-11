@@ -19,6 +19,9 @@ import importRoutes from './routes/import.js';
 import exportRoutes from './routes/export.js';
 import auditRoutes from './routes/audit.js';
 import systemRoutes from './routes/systemRoutes.js';
+import backupRoutes from './routes/backup.js';
+import dataQualityRoutes from './routes/dataQuality.js';
+import { initScheduledBackups } from './services/backupService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +83,8 @@ app.use('/api/import', importRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/backup', backupRoutes);
+app.use('/api/data-quality', dataQualityRoutes);
 
 // Serve static client if production build exists
 const clientDistPath = path.resolve(__dirname, '../../client/dist');
@@ -105,7 +110,10 @@ async function startServer() {
     // 1. Run migrations and verify DB
     await runMigrations();
 
-    // 2. Bind server to host (0.0.0.0 for LAN access)
+    // 2. Initialize scheduled database backups
+    await initScheduledBackups();
+
+    // 3. Bind server to host (0.0.0.0 for LAN access)
     app.listen(config.port, config.host, () => {
       console.log(`\n🚀 Server listening on ${config.host}:${config.port}`);
       printLanAccessInfo(config.port, 5173);

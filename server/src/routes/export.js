@@ -4,21 +4,23 @@ import { query } from '../db/index.js';
 import { getRecordsForExport, generateExcelExport, generatePdfExport } from '../services/exportService.js';
 
 const router = express.Router();
-
 router.use(requireAuth);
 
 // POST /api/export/excel
 router.post('/excel', async (req, res) => {
   try {
-    const { selectedIds, datasetId, queryText, searchField } = req.body;
+    const { selectedIds, datasetId, queryText, searchField, selectedColumns, title } = req.body;
 
     const records = await getRecordsForExport({ selectedIds, datasetId, queryText, searchField });
 
     if (records.length === 0) {
-      return res.status(400).json({ success: false, error: 'No records match the export criteria.' });
+      return res.status(400).json({ success: false, error: 'No matching records found to export.' });
     }
 
-    const excelBuffer = generateExcelExport(records, 'Business_Records_Export');
+    const excelBuffer = generateExcelExport(records, {
+      selectedColumns,
+      title: title || 'Business_Records_Export',
+    });
 
     // Audit log
     await query(`
@@ -28,7 +30,7 @@ router.post('/excel', async (req, res) => {
       req.user.id,
       req.user.username,
       'excel',
-      JSON.stringify({ exportedCount: records.length, selectedIdsCount: selectedIds?.length || 0 }),
+      JSON.stringify({ exportedCount: records.length, selectedColumnsCount: selectedColumns?.length || 0 }),
       req.ip || '127.0.0.1',
     ]);
 
@@ -45,15 +47,18 @@ router.post('/excel', async (req, res) => {
 // POST /api/export/pdf
 router.post('/pdf', async (req, res) => {
   try {
-    const { selectedIds, datasetId, queryText, searchField } = req.body;
+    const { selectedIds, datasetId, queryText, searchField, selectedColumns, title } = req.body;
 
     const records = await getRecordsForExport({ selectedIds, datasetId, queryText, searchField });
 
     if (records.length === 0) {
-      return res.status(400).json({ success: false, error: 'No records match the export criteria.' });
+      return res.status(400).json({ success: false, error: 'No matching records found to export.' });
     }
 
-    const pdfBuffer = await generatePdfExport(records, 'Business Records Report');
+    const pdfBuffer = await generatePdfExport(records, {
+      selectedColumns,
+      title: title || 'Business Records Report',
+    });
 
     // Audit log
     await query(`
@@ -63,7 +68,7 @@ router.post('/pdf', async (req, res) => {
       req.user.id,
       req.user.username,
       'pdf',
-      JSON.stringify({ exportedCount: records.length, selectedIdsCount: selectedIds?.length || 0 }),
+      JSON.stringify({ exportedCount: records.length, selectedColumnsCount: selectedColumns?.length || 0 }),
       req.ip || '127.0.0.1',
     ]);
 

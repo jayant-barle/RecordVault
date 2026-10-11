@@ -573,12 +573,24 @@ export default function ImportModal({ onClose, onImportSuccess }) {
                 </div>
               </div>
 
-              {/* Skipped rows explanation list */}
+              {/* Skipped rows explanation list & downloadable report */}
               {importSummary.errors?.length > 0 && (
                 <div style={{ marginBottom: '20px' }}>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--warning)', marginBottom: '8px' }}>
-                    Skipped / Errored Rows ({importSummary.errors.length})
-                  </h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--warning)', margin: 0 }}>
+                      Skipped / Errored Rows ({importSummary.errors.length})
+                    </h4>
+                    {importSummary.importJobId && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => api.downloadErrorReport(importSummary.importJobId)}
+                        style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                      >
+                        Download CSV Error Report
+                      </button>
+                    )}
+                  </div>
                   <div style={{
                     maxHeight: '140px',
                     overflowY: 'auto',

@@ -48,16 +48,23 @@ export const api = {
   },
 
   // Records
-  async searchRecords({ q = '', field = 'all', datasetId = '', page = 1, limit = 25, sortBy = 'created_at', sortOrder = 'DESC' }) {
+  async searchRecords({ q = '', field = 'all', datasetId = '', worksheet = '', dateFrom = '', dateTo = '', criteria = null, operator = 'AND', page = 1, limit = 25, sortBy = 'created_at', sortOrder = 'DESC' }) {
     const params = new URLSearchParams({
       q,
       field,
       datasetId: datasetId || '',
+      worksheet: worksheet || '',
+      dateFrom: dateFrom || '',
+      dateTo: dateTo || '',
+      operator: operator || 'AND',
       page: String(page),
       limit: String(limit),
       sortBy,
       sortOrder,
     });
+    if (criteria && Array.isArray(criteria) && criteria.length > 0) {
+      params.append('criteria', JSON.stringify(criteria));
+    }
     const res = await fetch(`${API_BASE}/records?${params}`, {
       headers: getAuthHeaders(),
     });
@@ -107,6 +114,57 @@ export const api = {
     return data;
   },
 
+  // Soft Deletion & Record Versions
+  async getDeletedRecords({ page = 1, limit = 25, q = '' } = {}) {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit), q });
+    const res = await fetch(`${API_BASE}/records/deleted?${params}`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load deleted records');
+    return data;
+  },
+
+  async restoreDeletedRecord(id) {
+    const res = await fetch(`${API_BASE}/records/${id}/restore`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to restore record');
+    return data;
+  },
+
+  async permanentDeleteRecord(id) {
+    const res = await fetch(`${API_BASE}/records/${id}/permanent`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to permanently delete record');
+    return data;
+  },
+
+  async getRecordVersions(id) {
+    const res = await fetch(`${API_BASE}/records/${id}/versions`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load record version history');
+    return data.data;
+  },
+
+  async undoRecordEdit(id, versionId) {
+    const res = await fetch(`${API_BASE}/records/${id}/undo`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ versionId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to undo edit');
+    return data;
+  },
+
   // Datasets
   async getDatasets() {
     const res = await fetch(`${API_BASE}/datasets`, {
@@ -114,6 +172,24 @@ export const api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to load datasets');
+    return data.data;
+  },
+
+  async getDataset(id) {
+    const res = await fetch(`${API_BASE}/datasets/${id}`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load dataset details');
+    return data.data;
+  },
+
+  async getDatasetConflicts() {
+    const res = await fetch(`${API_BASE}/datasets/conflicts`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to check dataset conflicts');
     return data.data;
   },
 
@@ -152,6 +228,41 @@ export const api = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Import failed');
     return data;
+  },
+
+  async getImportHistory() {
+    const res = await fetch(`${API_BASE}/import/history`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load import history');
+    return data.data;
+  },
+
+  async rollbackImport(jobId) {
+    const res = await fetch(`${API_BASE}/import/jobs/${jobId}/rollback`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to rollback import');
+    return data;
+  },
+
+  async downloadErrorReport(jobId) {
+    const res = await fetch(`${API_BASE}/import/jobs/${jobId}/error-report`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to download error report');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `import_error_report_${jobId}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   },
 
   // Export
@@ -195,6 +306,115 @@ export const api = {
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
+  },
+
+  // Database Backup and Restore
+  async getBackups() {
+    const res = await fetch(`${API_BASE}/backup/list`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to list backups');
+    return data.data;
+  },
+
+  async createBackup({ description = '' } = {}) {
+    const res = await fetch(`${API_BASE}/backup/create`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ description }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create backup');
+    return data;
+  },
+
+  async restoreBackup(backupId) {
+    const res = await fetch(`${API_BASE}/backup/restore`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ backupId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to restore backup');
+    return data;
+  },
+
+  async getBackupSchedule() {
+    const res = await fetch(`${API_BASE}/backup/schedule`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load backup schedule');
+    return data.data;
+  },
+
+  async updateBackupSchedule(payload) {
+    const res = await fetch(`${API_BASE}/backup/schedule`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update backup schedule');
+    return data;
+  },
+
+  async downloadBackup(backupId) {
+    const res = await fetch(`${API_BASE}/backup/${backupId}/download`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to download backup file');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `database_backup_${backupId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  // Data Quality & Duplicate Detection
+  async getDataQuality(datasetId = null) {
+    const url = datasetId ? `${API_BASE}/data-quality?datasetId=${datasetId}` : `${API_BASE}/data-quality`;
+    const res = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to run data quality analysis');
+    return data.data;
+  },
+
+  async downloadDataQualityCsv(datasetId = null) {
+    const url = datasetId ? `${API_BASE}/data-quality/export?datasetId=${datasetId}` : `${API_BASE}/data-quality/export`;
+    const res = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to download data quality CSV');
+    const blob = await res.blob();
+    const dlUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = dlUrl;
+    a.download = `data_quality_report_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(dlUrl);
+  },
+
+  // LAN & System Health
+  async getSystemHealth() {
+    const res = await fetch(`${API_BASE}/system/health`);
+    const data = await res.json();
+    return data;
+  },
+
+  async getSystemInfo() {
+    const res = await fetch(`${API_BASE}/system/info`);
+    const data = await res.json();
+    return data;
   },
 
   // Audit & History

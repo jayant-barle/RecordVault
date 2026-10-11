@@ -11,6 +11,12 @@ import ExportModal from './components/ExportModal.jsx';
 import SearchHistoryModal from './components/SearchHistoryModal.jsx';
 import AuditLogModal from './components/AuditLogModal.jsx';
 import DatasetsModal from './components/DatasetsModal.jsx';
+import BackupRestoreModal from './components/BackupRestoreModal.jsx';
+import DeletedRecordsModal from './components/DeletedRecordsModal.jsx';
+import RecordVersionModal from './components/RecordVersionModal.jsx';
+import ImportHistoryModal from './components/ImportHistoryModal.jsx';
+import DataQualityModal from './components/DataQualityModal.jsx';
+import LanHealthModal from './components/LanHealthModal.jsx';
 import { api } from './services/api.js';
 
 export default function App() {
@@ -23,7 +29,11 @@ export default function App() {
   // Selected records for modals
   const [viewRecord, setViewRecord] = useState(null);
   const [editRecord, setEditRecord] = useState(null);
+  const [versionRecord, setVersionRecord] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [showImportHistory, setShowImportHistory] = useState(false);
+  const [showDeletedRecords, setShowDeletedRecords] = useState(false);
+  const [showLanHealth, setShowLanHealth] = useState(false);
   const [exportConfig, setExportConfig] = useState(null); // { selectedIds, totalFilteredCount, currentQuery, ... }
   
   // Toast notifications
@@ -63,19 +73,19 @@ export default function App() {
   // Record actions
   const handleSaveEdit = async (id, updates) => {
     await api.updateRecord(id, updates);
-    addToast('Record updated successfully', 'success');
+    addToast('Record updated successfully (Snapshot saved for undo)', 'success');
     triggerRefresh();
   };
 
   const handleDeleteRecord = async (record) => {
     const confirmed = window.confirm(
-      `Are you sure you want to delete record ${record.excel_id} (${record.name || 'Unnamed'})?\n\nThis action cannot be undone.`
+      `Delete record ${record.excel_id} (${record.name || 'Unnamed'})?\n\nThis record will be moved to Deleted Records and can be recovered if needed.`
     );
     if (!confirmed) return;
 
     try {
       await api.deleteRecord(record.id);
-      addToast(`Record ${record.excel_id} deleted successfully`, 'success');
+      addToast(`Record ${record.excel_id} moved to Recycle Bin`, 'success');
       if (viewRecord?.id === record.id) setViewRecord(null);
       triggerRefresh();
     } catch (err) {
@@ -90,6 +100,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         onOpenImport={() => setShowImport(true)}
         onOpenExport={() => setExportConfig({ selectedIds: [], totalFilteredCount: 0 })}
+        onOpenLanHealth={() => setShowLanHealth(true)}
       />
 
       <SharedPermissionsBanner />
@@ -99,13 +110,15 @@ export default function App() {
           onViewRecord={(r) => setViewRecord(r)}
           onEditRecord={(r) => setEditRecord(r)}
           onDeleteRecord={handleDeleteRecord}
+          onViewVersions={(r) => setVersionRecord(r)}
+          onOpenDeletedRecords={() => setShowDeletedRecords(true)}
           onOpenExport={(config) => setExportConfig(config)}
           onOpenImport={() => setShowImport(true)}
           refreshTrigger={refreshTrigger}
         />
       </main>
 
-      {/* MODALS */}
+      {/* RECORD DETAIL & EDIT MODALS */}
       {viewRecord && (
         <RecordDetailModal
           record={viewRecord}
@@ -126,9 +139,37 @@ export default function App() {
         />
       )}
 
+      {/* RECORD VERSION & UNDO MODAL */}
+      {versionRecord && (
+        <RecordVersionModal
+          record={versionRecord}
+          onClose={() => setVersionRecord(null)}
+          onVersionRestored={() => {
+            addToast('Historical version restored successfully', 'success');
+            triggerRefresh();
+          }}
+        />
+      )}
+
+      {/* RECYCLE BIN / DELETED RECORDS RECOVERY */}
+      {showDeletedRecords && (
+        <DeletedRecordsModal
+          onClose={() => setShowDeletedRecords(false)}
+          onRecordRestored={() => {
+            addToast('Record restored from Recycle Bin', 'success');
+            triggerRefresh();
+          }}
+        />
+      )}
+
+      {/* IMPORT & IMPORT HISTORY */}
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
+          onOpenHistory={() => {
+            setShowImport(false);
+            setShowImportHistory(true);
+          }}
           onImportSuccess={() => {
             addToast('Excel import committed successfully!', 'success');
             triggerRefresh();
@@ -136,6 +177,17 @@ export default function App() {
         />
       )}
 
+      {showImportHistory && (
+        <ImportHistoryModal
+          onClose={() => setShowImportHistory(false)}
+          onRollbackComplete={() => {
+            addToast('Import rollback executed successfully', 'success');
+            triggerRefresh();
+          }}
+        />
+      )}
+
+      {/* CUSTOM COLUMN EXPORT */}
       {exportConfig && (
         <ExportModal
           {...exportConfig}
@@ -143,16 +195,47 @@ export default function App() {
         />
       )}
 
+      {/* DATASET MANAGEMENT */}
       {activeTab === 'datasets' && (
         <DatasetsModal
           onClose={() => setActiveTab('search')}
           onDatasetChange={() => {
-            addToast('Dataset updated');
+            addToast('Dataset telemetry updated');
+            triggerRefresh();
+          }}
+          onOpenImportHistory={() => {
+            setActiveTab('search');
+            setShowImportHistory(true);
+          }}
+        />
+      )}
+
+      {/* DATA QUALITY & DUPLICATE REPORT */}
+      {activeTab === 'quality' && (
+        <DataQualityModal
+          onClose={() => setActiveTab('search')}
+        />
+      )}
+
+      {/* DATABASE BACKUP & RESTORATION */}
+      {activeTab === 'backup' && (
+        <BackupRestoreModal
+          onClose={() => setActiveTab('search')}
+          onBackupRestored={() => {
+            addToast('Database successfully restored from backup snapshot', 'success');
             triggerRefresh();
           }}
         />
       )}
 
+      {/* LAN HEALTH & TROUBLESHOOTING */}
+      {showLanHealth && (
+        <LanHealthModal
+          onClose={() => setShowLanHealth(false)}
+        />
+      )}
+
+      {/* SEARCH HISTORY & AUDIT LOGS */}
       {activeTab === 'history' && (
         <SearchHistoryModal
           onClose={() => setActiveTab('search')}

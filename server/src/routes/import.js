@@ -3,10 +3,10 @@ import crypto from 'crypto';
 import { requireAuth } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { inspectWorkbook, extractWorksheetRecords } from '../services/excelParser.js';
-import { executeImport } from '../services/importService.js';
+import { executeImport, rollbackImport, generateErrorReportCsv } from '../services/importService.js';
+import { query } from '../db/index.js';
 
 const router = express.Router();
-
 router.use(requireAuth);
 
 // In-memory buffer store for multi-step preview & confirmation workflow
@@ -121,6 +121,70 @@ router.post('/commit', async (req, res) => {
     });
   } catch (err) {
     console.error('Import commit error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/import/history - List import jobs with metrics
+router.get('/history', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const offset = (page - 1) * limit;
+
+    const countRes = await query('SELECT COUNT(*) as total FROM import_jobs');
+    const total = parseInt(countRes.rows[0]?.total || 0, 10);
+
+    const jobsRes = await query(`
+      SELECT 
+        j.*,
+        u.username as user_name,
+        d.name as dataset_name
+      FROM import_jobs j
+      LEFT JOIN users u ON j.user_id = u.id
+      LEFT JOIN datasets d ON j.dataset_id = d.id
+      ORDER BY j.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+
+    res.json({
+      success: true,
+      data: jobsRes.rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/import/jobs/:id/rollback - Rollback an import job
+router.post('/jobs/:id/rollback', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await rollbackImport(id, req.user?.id, req.user?.username);
+    res.json(result);
+  } catch (err) {
+    console.error('Import rollback error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/import/jobs/:id/error-report - Download CSV error report
+router.get('/jobs/:id/error-report', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const csvData = await generateErrorReportCsv(id);
+    const filename = `import_error_report_${id.slice(0, 8)}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvData);
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });

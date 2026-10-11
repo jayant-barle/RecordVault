@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, RotateCcw, Filter, Download, Trash2, Eye, Edit2,
   Database, Layers, FileSpreadsheet, Activity, ChevronLeft,
-  ChevronRight, CheckSquare, Square, AlertCircle, Plus
+  ChevronRight, CheckSquare, Square, AlertCircle, Plus, History,
+  Calendar, SlidersHorizontal, X, ArrowUpDown
 } from 'lucide-react';
 import { api } from '../services/api.js';
 
@@ -10,6 +11,8 @@ export default function Dashboard({
   onViewRecord,
   onEditRecord,
   onDeleteRecord,
+  onViewVersions,
+  onOpenDeletedRecords,
   onOpenExport,
   onOpenImport,
   refreshTrigger
@@ -26,6 +29,14 @@ export default function Dashboard({
   const [sortOrder, setSortOrder] = useState('DESC');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
+
+  // Advanced Search Builder state
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [criteria, setCriteria] = useState([]); // [{ field: 'name', operator: 'equals', value: '' }]
+  const [criteriaLogic, setCriteriaLogic] = useState('AND'); // 'AND' or 'OR'
+  const [worksheetFilter, setWorksheetFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   // Results state
   const [records, setRecords] = useState([]);
@@ -47,10 +58,16 @@ export default function Dashboard({
     setLoading(true);
     setError('');
     try {
+      const activeCriteria = criteria.filter(c => c.field && (c.operator.includes('empty') || c.value.trim() !== ''));
       const res = await api.searchRecords({
         q: searchQuery,
         field: searchField,
         datasetId: datasetFilter,
+        worksheet: worksheetFilter,
+        dateFrom,
+        dateTo,
+        criteria: activeCriteria.length > 0 ? activeCriteria : null,
+        operator: criteriaLogic,
         page: targetPage,
         limit,
         sortBy,
@@ -64,7 +81,7 @@ export default function Dashboard({
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, searchField, datasetFilter, page, limit, sortBy, sortOrder]);
+  }, [searchQuery, searchField, datasetFilter, worksheetFilter, dateFrom, dateTo, criteria, criteriaLogic, page, limit, sortBy, sortOrder]);
 
   useEffect(() => {
     loadMetadata();
@@ -80,9 +97,27 @@ export default function Dashboard({
     setSearchQuery('');
     setSearchField('all');
     setDatasetFilter('');
+    setWorksheetFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setCriteria([]);
+    setCriteriaLogic('AND');
     setSortBy('created_at');
     setSortOrder('DESC');
     setPage(1);
+  };
+
+  // Advanced Criteria builders
+  const handleAddCriterion = () => {
+    setCriteria(prev => [...prev, { field: 'name', operator: 'equals', value: '' }]);
+  };
+
+  const handleRemoveCriterion = (index) => {
+    setCriteria(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateCriterion = (index, key, val) => {
+    setCriteria(prev => prev.map((c, i) => i === index ? { ...c, [key]: val } : c));
   };
 
   // Selection handlers
@@ -103,7 +138,7 @@ export default function Dashboard({
   const handleBatchDelete = async () => {
     if (selectedIds.length === 0) return;
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedIds.length} selected record(s)?\n\nThis action cannot be undone.`
+      `Are you sure you want to delete ${selectedIds.length} selected record(s)?\n\nThese will be safely moved to Deleted Records for recovery if needed.`
     );
     if (!confirmed) return;
 
@@ -179,7 +214,7 @@ export default function Dashboard({
         <div className="search-title-row">
           <div>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-              Exact-Match Record Search
+              Exact-Match Multi-Field Search
             </h2>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Trims whitespace, applies case normalization, and preserves leading zeros
@@ -187,6 +222,13 @@ export default function Dashboard({
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className={`btn ${showAdvanced ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              title="Toggle multi-criteria criteria builder"
+            >
+              <SlidersHorizontal size={14} /> {showAdvanced ? 'Simple Search' : 'Advanced Filters'}
+            </button>
             <button
               className="btn btn-secondary btn-sm"
               onClick={handleResetSearch}
@@ -202,6 +244,7 @@ export default function Dashboard({
                 currentQuery: searchQuery,
                 currentField: searchField,
                 currentDataset: datasetFilter,
+                customFields: customFieldNames,
               })}
             >
               <Download size={14} /> Export Results
@@ -233,7 +276,7 @@ export default function Dashboard({
                 value={searchField}
                 onChange={(e) => setSearchField(e.target.value)}
               >
-                <option value="all">Search All Fields</option>
+                <option value="all">Search All Eligible Fields</option>
                 <option value="excel_id">Excel Business ID</option>
                 <option value="name">Full Name</option>
                 <option value="mobile">Mobile Number</option>
@@ -267,6 +310,161 @@ export default function Dashboard({
               <Search size={16} /> Search
             </button>
           </div>
+
+          {/* ADVANCED MULTI-FIELD SEARCH BUILDER */}
+          {showAdvanced && (
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              background: 'rgba(0,0,0,0.3)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Multi-Field Match Logic:</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      className={`btn ${criteriaLogic === 'AND' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                      onClick={() => setCriteriaLogic('AND')}
+                      style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                    >
+                      AND (All Criteria Must Match)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${criteriaLogic === 'OR' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                      onClick={() => setCriteriaLogic('OR')}
+                      style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                    >
+                      OR (Any Criterion May Match)
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleAddCriterion}
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  <Plus size={13} /> Add Criterion
+                </button>
+              </div>
+
+              {/* Extra Filters: Worksheet & Date Range */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.72rem' }}>Worksheet Filter</label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ padding: '6px 10px', fontSize: '0.82rem' }}
+                    placeholder="e.g. Sheet1, Customers..."
+                    value={worksheetFilter}
+                    onChange={(e) => setWorksheetFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.72rem' }}>Date Added (From)</label>
+                  <input
+                    type="date"
+                    className="input"
+                    style={{ padding: '6px 10px', fontSize: '0.82rem' }}
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.72rem' }}>Date Added (To)</label>
+                  <input
+                    type="date"
+                    className="input"
+                    style={{ padding: '6px 10px', fontSize: '0.82rem' }}
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Criteria List */}
+              {criteria.length === 0 ? (
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                  No extra criteria added yet. Click "+ Add Criterion" to specify simultaneous field constraints (e.g. Name = "Alice" AND Department = "Engineering").
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {criteria.map((c, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '180px 150px 1fr 36px',
+                        gap: '8px',
+                        alignItems: 'center',
+                        background: 'rgba(255,255,255,0.02)',
+                        padding: '6px 8px',
+                        borderRadius: 'var(--radius-sm)'
+                      }}
+                    >
+                      <select
+                        className="select"
+                        style={{ padding: '6px 8px', fontSize: '0.82rem' }}
+                        value={c.field}
+                        onChange={(e) => handleUpdateCriterion(idx, 'field', e.target.value)}
+                      >
+                        <option value="excel_id">Excel Business ID</option>
+                        <option value="name">Full Name</option>
+                        <option value="mobile">Mobile Number</option>
+                        <option value="email">Email Address</option>
+                        <option value="company">Company / Department</option>
+                        {customFieldNames.map(f => (
+                          <option key={f} value={`custom:${f}`}>Custom: {f}</option>
+                        ))}
+                      </select>
+
+                      <select
+                        className="select"
+                        style={{ padding: '6px 8px', fontSize: '0.82rem' }}
+                        value={c.operator}
+                        onChange={(e) => handleUpdateCriterion(idx, 'operator', e.target.value)}
+                      >
+                        <option value="equals">Equals (=)</option>
+                        <option value="not_equals">Does Not Equal (!=)</option>
+                        <option value="is_empty">Is Empty / Null</option>
+                        <option value="is_not_empty">Is Not Empty</option>
+                      </select>
+
+                      {!c.operator.includes('empty') ? (
+                        <input
+                          type="text"
+                          className="input"
+                          style={{ padding: '6px 8px', fontSize: '0.82rem' }}
+                          placeholder="Exact matching value..."
+                          value={c.value}
+                          onChange={(e) => handleUpdateCriterion(idx, 'value', e.target.value)}
+                        />
+                      ) : (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', paddingLeft: '8px' }}>
+                          (Checks for empty/null field state)
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCriterion(idx)}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}
+                        title="Remove criterion"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </form>
       </div>
 
@@ -290,6 +488,7 @@ export default function Dashboard({
                   currentQuery: searchQuery,
                   currentField: searchField,
                   currentDataset: datasetFilter,
+                  customFields: customFieldNames,
                 })}
               >
                 <Download size={13} /> Export ({selectedIds.length})
@@ -311,8 +510,20 @@ export default function Dashboard({
           )}
         </div>
 
-        {/* Sort controls */}
+        {/* Sort and Recovery controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onOpenDeletedRecords && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={onOpenDeletedRecords}
+              style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+              title="Open deleted records recycle bin & recovery"
+            >
+              <Trash2 size={13} color="var(--danger)" /> Recycle Bin
+            </button>
+          )}
+
           <label style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Sort:</label>
           <select
             className="select"
@@ -361,22 +572,22 @@ export default function Dashboard({
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '6px' }}>
               No Matching Records Found
             </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)', maxWidth: '440px', margin: '0 auto 16px' }}>
-              {searchQuery
-                ? `No records matched "${searchQuery}" in exact-match mode. Check for exact spelling, or select "Search All Fields".`
-                : 'The database is currently empty. Click "Import Excel" to upload spreadsheet records.'}
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '420px', margin: '0 auto 16px' }}>
+              {searchQuery || criteria.length > 0
+                ? 'No exact match found for active query criteria. Review criteria or try searching across all fields.'
+                : 'No records exist in the database yet. Click "Import Excel" to upload workbooks.'}
             </p>
-            {!searchQuery && (
-              <button className="btn btn-primary btn-sm" onClick={onOpenImport}>
-                <Plus size={14} /> Import First Excel File
+            {(searchQuery || criteria.length > 0) && (
+              <button className="btn btn-secondary btn-sm" onClick={handleResetSearch}>
+                <RotateCcw size={14} /> Clear All Filters
               </button>
             )}
           </div>
         ) : (
-          <table className="data-table">
+          <table className="table">
             <thead>
               <tr>
-                <th style={{ width: '38px', textAlign: 'center' }}>
+                <th style={{ width: '40px', textAlign: 'center' }}>
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -384,13 +595,13 @@ export default function Dashboard({
                     style={{ cursor: 'pointer' }}
                   />
                 </th>
-                <th>Business ID</th>
+                <th>Excel ID</th>
                 <th>Full Name</th>
                 <th>Mobile Number</th>
                 <th>Email Address</th>
                 <th>Company / Dept</th>
                 <th>Dataset</th>
-                <th>Custom Fields</th>
+                <th>Custom Data</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
@@ -448,6 +659,16 @@ export default function Dashboard({
                       >
                         <Eye size={14} />
                       </button>
+                      {onViewVersions && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 8px', marginRight: '6px' }}
+                          onClick={() => onViewVersions(r)}
+                          title="View Edit History & Undo"
+                        >
+                          <History size={14} color="#38bdf8" />
+                        </button>
+                      )}
                       <button
                         className="btn btn-secondary btn-sm"
                         style={{ padding: '4px 8px', marginRight: '6px' }}
@@ -460,7 +681,7 @@ export default function Dashboard({
                         className="btn btn-danger btn-sm"
                         style={{ padding: '4px 8px' }}
                         onClick={() => onDeleteRecord(r)}
-                        title="Delete Record"
+                        title="Delete Record (Soft Delete with Recovery)"
                       >
                         <Trash2 size={14} />
                       </button>

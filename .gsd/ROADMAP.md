@@ -27,3 +27,15 @@
 - [x] Task 4.1: Automated test suite (Import tests, Search tests, Security tests, Functional tests)
 - [x] Task 4.2: LAN accessibility binding (0.0.0.0), IP display utility, and Firewall guide
 - [x] Task 4.3: Build verification and final end-to-end report
+
+## Wave 5: Advanced Excel Search & Record Management (Features 1-9)
+- [x] Task 5.1: Automatic Database Backup and Restore Engine (scheduled cron, manual snapshots, custom json/tar format, pre-restore safety backups, validation)
+- [x] Task 5.2: Undo Edits & Soft Deletion Recovery (record_versions diff tracking, transaction rollback, Recycle Bin recovery with collision protection)
+- [x] Task 5.3: Import History & Journal Rollback (import_journal tracking, atomic rollback preserving subsequent edits)
+- [x] Task 5.4: Advanced Multi-Field Search (AND/OR logic, date ranges, worksheet filters, empty/non-empty condition builder)
+- [x] Task 5.5: Custom Columns for Excel & PDF Exports (column picker, reordering, formula injection defense, leading zero preservation)
+- [x] Task 5.6: Dataset and Source Management (source overview, scoped queries, cross-dataset collision audit, safe deletion confirmation)
+- [x] Task 5.7: Import Progress & Downloadable Error Reports (stage tracking, row counters, downloadable CSV error reports)
+- [x] Task 5.8: LAN Connection & Database Telemetry (real-time ping, uptime, IP instructions, Windows firewall setup)
+- [x] Task 5.9: Duplicate Detection & Data Quality Suite (duplicate IDs, duplicate phones/emails, format anomalies, CSV data-quality report)
+
